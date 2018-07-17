@@ -1,0 +1,18 @@
+
+# IntelliJ.
+*.iml
+/.idea/
+
+# Maven.
+*/target/*
+third-party/*/target/*
+dependency-reduced-pom.xml
+
+# Python
+*.pyc
+
+# Temp.
+*~
+*.bak
+
+/envbuild.py

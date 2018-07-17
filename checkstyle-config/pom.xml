@@ -1,0 +1,22 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <artifactId>checkstyle-config</artifactId>
+  <name>checkstyle-config</name>
+  <packaging>jar</packaging>
+  <description>
+    This project is a jar that contains the checkstyle
+    configuration: checkstyle.xml.
+    Other projects that use the maven-checkstyle-plugin can depend on this
+    project (in the maven-checkstyle-plugin tags) to refer to this config.
+  </description>
+
+  <parent>
+    <groupId>com.graphicsfuzz</groupId>
+    <artifactId>parent-all</artifactId>
+    <version>1.0</version>
+    <relativePath>../parent-all/pom.xml</relativePath>
+  </parent>
+
+</project>

@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head>
+  <title>WebGL Client</title>
+  <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+  <link rel="stylesheet" type="text/css" href="style.css">
+
+  <!-- Hugues: we need jQuery for a stupid reason in loadClient() in multi runner.
+       TODO: get rid of jQuery -->
+  <script type="text/javascript" src="jquery-3.1.1.min.js"></script>
+
+  <script src="thrift.js"></script>
+  <script src="gen-js/FuzzerService_types.js"></script>
+  <script src="gen-js/FuzzerService.js"></script>
+  <script type="text/javascript">
+    var isRunnerMulti = true;
+  </script>
+  <script type="text/javascript" src="runner.js"></script>
+
+</head>
+<body>
+  <input id="version" class="multi_input multi_version_input" value="WebGL Context: "/>
+  <table id="table"></table>
+</body>
+</html>
+

@@ -1,0 +1,79 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.graphicsfuzz</groupId>
+  <artifactId>GraphicsFuzz</artifactId>
+  <version>1.0</version>
+  <packaging>pom</packaging>
+
+  <properties>
+    <!-- Default to UTF-8 otherwise Maven complains -->
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <profiles>
+    <profile>
+      <id>private</id>
+      <modules>
+        <!-- Keep in alphabetical order -->
+        <module>repos/gf-private/android-client-dep</module>
+        <module>repos/gf-private/assembly</module>
+        <module>repos/gf-private/client-tests</module>
+        <module>repos/gf-private/common</module>
+        <module>repos/gf-private/generate-and-run-shaders</module>
+        <module>repos/gf-private/generator</module>
+        <module>repos/gf-private/python</module>
+        <module>repos/gf-private/reducer</module>
+        <module>repos/gf-private/server</module>
+        <module>repos/gf-private/tester</module>
+        <module>repos/gf-private/tool</module>
+      </modules>
+      <activation>
+        <file>
+          <exists>repos/gf-private/assembly/pom.xml</exists>
+        </file>
+      </activation>
+    </profile>
+
+    <profile>
+      <id>webglfuzz</id>
+      <modules>
+        <!-- Keep in alphabetical order -->
+        <module>repos/webglfuzz/assembly-webglfuzz</module>
+        <module>repos/webglfuzz/tool-webglfuzz</module>
+        <module>repos/webglfuzz/webglfuzz</module>
+      </modules>
+      <activation>
+        <file>
+          <exists>repos/webglfuzz/assembly-webglfuzz/pom.xml</exists>
+        </file>
+      </activation>
+    </profile>
+
+  </profiles>
+
+  <modules>
+    <!-- Keep in alphabetical order -->
+    <module>assembly-binaries</module>
+    <module>assembly-public</module>
+    <module>ast</module>
+    <module>astfuzzer</module>
+    <module>checkstyle-config</module>
+    <module>common-util</module>
+    <module>compare-asts</module>
+    <module>fuzzerserver</module>
+    <module>parent-all</module>
+    <module>parent-checkstyle</module>
+    <module>security</module>
+    <module>server-public</module>
+    <module>server-static-public</module>
+    <module>server-thrift-gen</module>
+    <module>shaders</module>
+    <module>shadersets-util</module>
+    <module>thrift</module>
+    <module>test-util</module>
+    <module>third-party/alphanum-comparator</module>
+    <module>third-party/gif-sequence-writer</module>
+  </modules>
+
+
+</project>

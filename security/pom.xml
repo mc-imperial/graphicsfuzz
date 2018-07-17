@@ -1,0 +1,75 @@
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="http://maven.apache.org/POM/4.0.0"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <artifactId>security</artifactId>
+  <name>security</name>
+  <packaging>jar</packaging>
+
+  <parent>
+    <groupId>com.graphicsfuzz</groupId>
+    <artifactId>parent-checkstyle</artifactId>
+    <version>1.0</version>
+    <relativePath>../parent-checkstyle/pom.xml</relativePath>
+  </parent>
+  
+  <dependencies>
+
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.graphicsfuzz</groupId>
+      <artifactId>fuzzerserver</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.graphicsfuzz</groupId>
+      <artifactId>astfuzzer</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.bytedeco.javacpp-presets</groupId>
+      <artifactId>opencv</artifactId>
+      <version>3.1.0-1.2</version>
+    </dependency>
+    <dependency>
+      <groupId>org.bytedeco.javacpp-presets</groupId>
+      <artifactId>opencv</artifactId>
+      <version>3.1.0-1.2</version>
+      <classifier>linux-x86_64</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.bytedeco.javacpp-presets</groupId>
+      <artifactId>opencv</artifactId>
+      <version>3.1.0-1.2</version>
+      <classifier>macosx-x86_64</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.bytedeco.javacpp-presets</groupId>
+      <artifactId>opencv</artifactId>
+      <version>3.1.0-1.2</version>
+      <classifier>windows-x86_64</classifier>
+    </dependency>
+
+  </dependencies>
+
+</project>

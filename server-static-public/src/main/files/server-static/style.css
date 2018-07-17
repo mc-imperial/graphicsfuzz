@@ -1,0 +1,47 @@
+.opengl-canvas {
+  border: none;
+  background-color: #000;
+}
+
+#location, #shader_source, #uniforms_info, .console {
+  width: 622px;
+  height: 200px;
+  float: left;
+  clear: both;
+  resize: none;
+}
+
+.viewer_input {
+  width: 622px;
+  margin-bottom: 10px;
+}
+
+button {
+  width: 200px;
+  margin: 0px;
+  float: left;
+  clear: both;
+}
+
+.cell {
+  display: table-cell;
+  vertical-align: top;
+  /*border: solid;
+  border-width: thin;*/
+}
+
+.shader_location_input {
+  text-align: center;
+}
+
+.runner_input {
+  width: 300px;
+}
+
+.multi_input {
+  width: 100% !important;
+}
+
+.multi_version_input {
+  text-align: center;
+}

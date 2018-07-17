@@ -1,0 +1,7 @@
+[submodule "repos/gf-private"]
+	path = repos/gf-private
+	url = private
+
+[submodule "repos/webglfuzz"]
+	path = repos/webglfuzz
+	url = private
