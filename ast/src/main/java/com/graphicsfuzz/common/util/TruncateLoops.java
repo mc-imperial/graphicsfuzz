@@ -11,7 +11,10 @@ import com.graphicsfuzz.common.ast.decl.VariableDeclInfo;
 import com.graphicsfuzz.common.ast.decl.VariablesDeclaration;
 import com.graphicsfuzz.common.ast.expr.BinOp;
 import com.graphicsfuzz.common.ast.expr.BinaryExpr;
+import com.graphicsfuzz.common.ast.expr.Expr;
 import com.graphicsfuzz.common.ast.expr.IntConstantExpr;
+import com.graphicsfuzz.common.ast.expr.Op;
+import com.graphicsfuzz.common.ast.expr.ParenExpr;
 import com.graphicsfuzz.common.ast.expr.UnOp;
 import com.graphicsfuzz.common.ast.expr.UnaryExpr;
 import com.graphicsfuzz.common.ast.expr.VariableIdentifierExpr;
@@ -30,6 +33,8 @@ import com.graphicsfuzz.common.ast.visitors.StandardVisitor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 
 public class TruncateLoops extends StandardVisitor {
 
@@ -49,7 +54,7 @@ public class TruncateLoops extends StandardVisitor {
   @Override
   public void visitForStmt(ForStmt forStmt) {
     super.visitForStmt(forStmt);
-    if(analyseForStmt(forStmt)) {
+    if (maybeLongRunning(forStmt)) {
       handleLoop(forStmt);
     }
   }
@@ -104,98 +109,146 @@ public class TruncateLoops extends StandardVisitor {
     parentMap.getParent(loopStmt).replaceChild(loopStmt, replacementBlock);
   }
 
-  private boolean analyseForStmt(ForStmt forStmt) {
+  private boolean maybeLongRunning(ForStmt forStmt) {
+    final Optional<ImmutablePair<String, Integer>> initValueAndLoopCounterName
+        = getLoopCounterNameAndInitValue(forStmt.getInit());
+    if (!initValueAndLoopCounterName.isPresent()) {
+      return false;
+    }
+    final String loopCounterName = initValueAndLoopCounterName.get().left;
+    final int initValue = initValueAndLoopCounterName.get().right;
 
-    String loopCounterName;
-    int initValue;
-    BinOp condTestType;
-    int condValue;
-    int incrementValue;
+    final Optional<ImmutablePair<BinOp, Integer>> condTestTypeAndLimitValue
+        = getCondTestTypeAndLimitValue(forStmt.getCondition(), loopCounterName);
+    if (!condTestTypeAndLimitValue.isPresent()) {
+      return false;
+    }
+    final BinOp condTestType = condTestTypeAndLimitValue.get().left;
+    final int condLimitValue = condTestTypeAndLimitValue.get().right;
+    if (condTestType.isSideEffecting()) {
+      return false;
+    }
 
-    if (forStmt.getInit() instanceof ExprStmt
-        && ((ExprStmt) forStmt.getInit()).getExpr() instanceof BinaryExpr
-        && ((BinaryExpr)(((ExprStmt) forStmt.getInit()).getExpr())).getOp() == BinOp.ASSIGN
-        && ((BinaryExpr)(((ExprStmt) forStmt.getInit()).getExpr())).getRhs()
-        instanceof IntConstantExpr
-        && ((BinaryExpr)(((ExprStmt) forStmt.getInit()).getExpr())).getLhs()
+    final Optional<Integer> incrementValue
+        = getIncrementValue(forStmt.getIncrement(), loopCounterName);
+    if (!incrementValue.isPresent()) {
+      return false;
+    }
+
+    return (((condTestType == BinOp.LT || condTestType == BinOp.LE) && incrementValue.get() <= 0)
+        || ((condTestType == BinOp.GT || condTestType == BinOp.GE) && incrementValue.get() >= 0)
+        || ((condLimitValue - initValue) / incrementValue.get() >= limit));
+  }
+
+  private Optional<ImmutablePair<String, Integer>> getLoopCounterNameAndInitValue(Stmt init) {
+    String name = null;
+    Expr expr = null;
+    if (init instanceof ExprStmt
+        && ((ExprStmt) init).getExpr() instanceof BinaryExpr
+        && ((BinaryExpr)(((ExprStmt) init).getExpr())).getOp() == BinOp.ASSIGN
+        && ((BinaryExpr)(((ExprStmt) init).getExpr())).getLhs()
         instanceof VariableIdentifierExpr) {
-      initValue = Integer.valueOf(
-          ((IntConstantExpr)((BinaryExpr)(((ExprStmt) forStmt.getInit()).getExpr())).getRhs())
-              .getValue());
-      loopCounterName = ((VariableIdentifierExpr) (((BinaryExpr)(((ExprStmt) forStmt.getInit())
+      name = ((VariableIdentifierExpr) (((BinaryExpr)(((ExprStmt) init)
           .getExpr())).getLhs())).getName();
-    } else if(forStmt.getInit() instanceof DeclarationStmt
-        && ((DeclarationStmt) forStmt.getInit()).getVariablesDeclaration().getNumDecls() == 1
-        && ((DeclarationStmt) forStmt.getInit()).getVariablesDeclaration().getDeclInfo(0)
-        .getInitializer() instanceof ScalarInitializer
-        && ((ScalarInitializer)((DeclarationStmt) forStmt.getInit()).getVariablesDeclaration()
-        .getDeclInfo(0).getInitializer()).getExpr() instanceof IntConstantExpr) {
-      initValue = Integer.valueOf(
-          ((IntConstantExpr)((ScalarInitializer)((DeclarationStmt) forStmt.getInit())
-              .getVariablesDeclaration().getDeclInfo(0)
-              .getInitializer()).getExpr()).getValue());
-      loopCounterName = ((DeclarationStmt) forStmt.getInit()).getVariablesDeclaration()
+      expr = ((BinaryExpr)(((ExprStmt) init)
+          .getExpr())).getRhs();
+    } else if (init instanceof DeclarationStmt
+        && ((DeclarationStmt) init).getVariablesDeclaration().getNumDecls() == 1
+        && ((DeclarationStmt) init).getVariablesDeclaration().getDeclInfo(0)
+        .getInitializer() instanceof ScalarInitializer) {
+      name = ((DeclarationStmt) init).getVariablesDeclaration()
           .getDeclInfo(0).getName();
-    } else {
-      return false;
+      expr = ((ScalarInitializer)((DeclarationStmt) init)
+          .getVariablesDeclaration().getDeclInfo(0)
+          .getInitializer()).getExpr();
+    }
+    if (name == null || expr == null) {
+      return Optional.empty();
+    }
+    Optional<Integer> constant = getAsConstant(expr);
+    if (!constant.isPresent()) {
+      return Optional.empty();
+    }
+    return Optional.of(new ImmutablePair<>(name, constant.get()));
+  }
+
+  private Optional<ImmutablePair<BinOp,Integer>> getCondTestTypeAndLimitValue(Expr cond,
+      String loopCounterName) {
+    if (!(cond instanceof BinaryExpr)) {
+      return Optional.empty();
+    }
+    final BinaryExpr binaryExprCond = (BinaryExpr) cond;
+    Optional<Integer> condLimitValue = getAsConstant(binaryExprCond.getRhs());
+    if (condLimitValue.isPresent()
+        && isSameVarIdentifier(binaryExprCond.getLhs(), loopCounterName)) {
+      return Optional.of(new ImmutablePair<>(binaryExprCond.getOp(), condLimitValue.get()));
+    }
+    condLimitValue = getAsConstant(binaryExprCond.getLhs());
+    if (condLimitValue.isPresent()
+        && isSameVarIdentifier(binaryExprCond.getRhs(), loopCounterName)) {
+      return Optional.of(new ImmutablePair<>(switchCondTestType(binaryExprCond.getOp()),
+          condLimitValue.get()));
     }
 
-    if (forStmt.getCondition() instanceof BinaryExpr
-        && ((BinaryExpr) forStmt.getCondition()).getRhs() instanceof IntConstantExpr // Add Unary Expression case
-        && ((BinaryExpr) forStmt.getCondition()).getLhs() instanceof VariableIdentifierExpr
-        && ((VariableIdentifierExpr) (((BinaryExpr) forStmt.getCondition()).getLhs())).getName()
-        .equals(loopCounterName)) {
-        condValue = Integer.valueOf(
-            ((IntConstantExpr)((BinaryExpr) forStmt.getCondition()).getRhs()).getValue());
-        condTestType = ((BinaryExpr) forStmt.getCondition()).getOp();
-    } else if (forStmt.getCondition() instanceof BinaryExpr
-        && ((BinaryExpr) forStmt.getCondition()).getLhs() instanceof IntConstantExpr
-        && ((BinaryExpr) forStmt.getCondition()).getRhs() instanceof VariableIdentifierExpr
-        && ((VariableIdentifierExpr) (((BinaryExpr) forStmt.getCondition()).getRhs())).getName()
-        .equals(loopCounterName)) {
-        condValue = Integer.valueOf(
-            ((IntConstantExpr)((BinaryExpr) forStmt.getCondition()).getLhs()).getValue());
-        condTestType = switchCondTestType(((BinaryExpr) forStmt.getCondition()).getOp());
-    } else {
-      return false;
-    }
+    return Optional.empty();
+  }
 
-    if(condTestType.isSideEffecting()) {
-      return false;
-    }
-
-    if (forStmt.getIncrement() instanceof UnaryExpr
-        && ((UnaryExpr) forStmt.getIncrement()).getExpr() instanceof VariableIdentifierExpr
-        && ((VariableIdentifierExpr) (((UnaryExpr) forStmt.getIncrement()).getExpr())).getName()
-        .equals(loopCounterName)) {
-      final UnOp operator = ((UnaryExpr) forStmt.getIncrement()).getOp();
-      if (operator == UnOp.POST_INC || operator == UnOp.PRE_INC) {
-        incrementValue = 1;
-      } else if (operator == UnOp.POST_DEC || operator == UnOp.PRE_DEC) {
-        incrementValue = -1;
-      } else {
-        return false;
+  private Optional<Integer> getIncrementValue(Expr incr, String loopCounterName) {
+    if (incr instanceof UnaryExpr
+        && isSameVarIdentifier(((UnaryExpr) incr).getExpr(), loopCounterName)) {
+      switch (((UnaryExpr) incr).getOp()) {
+        case POST_INC:
+        case PRE_INC:
+          return Optional.of(1);
+        case POST_DEC:
+        case PRE_DEC:
+          return Optional.of(-1);
+        default:
+          return Optional.empty();
       }
-    } else if (forStmt.getIncrement() instanceof BinaryExpr
-        && ((BinaryExpr) forStmt.getIncrement()).getRhs() instanceof IntConstantExpr
-        && ((BinaryExpr) forStmt.getIncrement()).getLhs() instanceof VariableIdentifierExpr
-        && ((VariableIdentifierExpr)(((BinaryExpr) forStmt.getIncrement()).getLhs())).getName()
-        .equals(loopCounterName)){
-      final BinaryExpr binaryExpr = (BinaryExpr) forStmt.getIncrement();
-      if(binaryExpr.getOp() == BinOp.ADD_ASSIGN) {
-        incrementValue = Integer.valueOf(((IntConstantExpr) binaryExpr.getRhs()).getValue());
-      } else if(binaryExpr.getOp() == BinOp.SUB_ASSIGN) {
-        incrementValue = -Integer.valueOf(((IntConstantExpr) binaryExpr.getRhs()).getValue());
-      } else {
-        return false;
-      }
-    } else {
-      return false;
     }
+    if (incr instanceof BinaryExpr
+        && isSameVarIdentifier(((BinaryExpr) incr).getLhs(), loopCounterName)) {
+      final Optional<Integer> incrementValue = getAsConstant(((BinaryExpr) incr).getRhs());
+      if (!incrementValue.isPresent()) {
+        return Optional.empty();
+      }
+      switch (((BinaryExpr) incr).getOp()) {
+        case ADD_ASSIGN:
+          return incrementValue;
+        case SUB_ASSIGN:
+          return incrementValue.map(item -> -item);
+        default:
+          return Optional.empty();
+      }
+    }
+    return Optional.empty();
+  }
 
-    return (((condTestType == BinOp.LT || condTestType == BinOp.LE) && incrementValue <= 0)
-        || ((condTestType == BinOp.GT || condTestType == BinOp.GE) && incrementValue >= 0)
-        || ((condValue - initValue) / incrementValue > limit));
+  private boolean isSameVarIdentifier(Expr expr, String loopCounterName) {
+    return expr instanceof VariableIdentifierExpr
+        && ((VariableIdentifierExpr)expr).getName().equals(loopCounterName);
+  }
+
+  private Optional<Integer> getAsConstant(Expr expr) {
+    if (expr instanceof ParenExpr) {
+      return getAsConstant(((ParenExpr)expr).getExpr());
+    }
+    if (expr instanceof IntConstantExpr) {
+      return Optional.of(Integer.valueOf(((IntConstantExpr) expr).getValue()));
+    }
+    if (expr instanceof UnaryExpr) {
+      final UnaryExpr unaryExpr = (UnaryExpr) expr;
+      switch (unaryExpr.getOp()) {
+        case MINUS:
+          return getAsConstant(unaryExpr.getExpr()).map(item -> -item);
+        case PLUS:
+          return getAsConstant(unaryExpr.getExpr());
+        default:
+          return Optional.empty();
+      }
+    }
+    return Optional.empty();
   }
 
   private BinOp switchCondTestType(BinOp binOp) {
